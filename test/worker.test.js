@@ -142,21 +142,24 @@ test('requests generate different data rather than sharing a cached document', a
   }
 });
 
-test('unmatched paths return 404 HTML with only dead generated index links', async () => {
+test('unmatched paths return 200 HTML with generated links to more indexes', async () => {
+  assert.equal((await request('/')).status, 200);
   const a = await request('/missing%3Cscript%3E');
-  assert.equal(a.status, 404);
+  assert.equal(a.status, 200);
   assert.match(a.headers.get('content-type'), /text\/html/);
   const body = await a.text();
   assert.ok(Buffer.byteLength(body) >= HTML_BYTES);
   assert.match(body, /&lt;script&gt;/);
   assert.doesNotMatch(body, /<script>/);
   assert.match(body, /<link rel="icon" href="\/favicon.ico"/);
+  assert.doesNotMatch(body, /404 Not Found/);
   const links = [...body.matchAll(/<a\b[^>]*href="([^"]+)"/g)].map(match => match[1]);
   assert.ok(links.length > 100);
   for (const link of links) assert.equal(Object.hasOwn(routes, link), false);
-  assert.equal((await request(links[0])).status, 404);
+  assert.equal((await request(links[0])).status, 200);
+  assert.equal((await request(links[1])).status, 200);
   assert.notEqual(await (await request('/missing')).text(), await (await request('/missing')).text());
-  assert.equal((await request('/missing', { method: 'POST' })).status, 404);
+  assert.equal((await request('/missing', { method: 'POST' })).status, 200);
 });
 
 test('HEAD, query strings, encoded paths and unsupported methods retain HTTP semantics', async () => {
@@ -165,10 +168,11 @@ test('HEAD, query strings, encoded paths and unsupported methods retain HTTP sem
   assert.equal(await head.text(), '');
   assert.ok(Number(head.headers.get('content-length')) >= TARGET_BYTES);
   const missing = await request('/missing', { method: 'HEAD' });
-  assert.equal(missing.status, 404);
+  assert.equal(missing.status, 200);
   assert.equal(await missing.text(), '');
+  assert.ok(Number(missing.headers.get('content-length')) >= HTML_BYTES);
   assert.equal((await request('/%2eenv')).status, 200);
   assert.equal((await request('/.env?download=1')).status, 200);
   assert.equal((await request('/.env', { method: 'POST' })).status, 405);
-  assert.equal((await request('/.env/child')).status, 404);
+  assert.equal((await request('/.env/child')).status, 200);
 });

@@ -5,7 +5,7 @@ import { HTML_BYTES, date, escapeHTML, fill, id, integer, name, token } from './
 
 export { routes };
 
-function notFound(path) {
+function directoryIndex(path) {
   const seed = id();
   const prefix = '/archive/' + seed + '/';
   const opening = `<!doctype html>
@@ -17,7 +17,7 @@ function notFound(path) {
 [DIR] <a rel="nofollow" href="${prefix}">../</a>${' '.repeat(49 + 19)}${'-'.padStart(5)}  Parent Directory
 \n`;
   const content = fill(opening, () => {
-    // This namespace is absent from the exact route manifest: every link stays a 404.
+    // This namespace is absent from the exact route manifest: every link serves another index.
     const entry = `${name()}-${token(16)}.${['json', 'sql', 'bak', 'tar.gz'][integer(4)]}`;
     const modified = new Date(date());
     const month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][modified.getUTCMonth()];
@@ -26,7 +26,7 @@ function notFound(path) {
     const marker = entry.endsWith('.tar.gz') ? '[ARC]' : '[TXT]';
     return `${marker} <a rel="nofollow" href="${prefix}${entry}">${entry}</a>${' '.repeat(52 - entry.length)}${timestamp}  ${size}\n`;
   }, HTML_BYTES);
-  return content + '</pre><hr><address>nginx / Apache Server</address><p>404 Not Found</p></body></html>\n';
+  return content + '</pre><hr><address>nginx / Apache Server</address></body></html>\n';
 }
 
 export default {
@@ -45,11 +45,11 @@ export default {
       return new Response('Method not allowed\n', { status: 405, headers: { ...headers, Allow: 'GET, HEAD' } });
     }
     const payload = matched ? await generate(path, routes[path])
-      : { body: notFound(path), type: 'text/html; charset=utf-8' };
+      : { body: directoryIndex(path), type: 'text/html; charset=utf-8' };
     headers['Content-Type'] = payload.type;
     headers['Content-Length'] = String(Buffer.byteLength(payload.body));
     return new Response(request.method === 'HEAD' ? null : payload.body, {
-      status: matched ? 200 : 404, headers,
+      status: 200, headers,
     });
   },
 };

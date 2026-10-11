@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { Readable } from 'node:stream';
 import worker from './index.js';
 
-// Local Node adapter. Cloudflare deploys index.js directly, including its 404 handler.
+// Local Node adapter. Cloudflare deploys index.js directly, including its directory index handler.
 const port = Number(process.env.PORT ?? 3000);
 createServer(async (incoming, outgoing) => {
   try {

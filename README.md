@@ -39,7 +39,7 @@ For Cloudflare Workers Builds (Git integration), use these settings:
 - `/AGENTS.md`, `/CLAUDE.md` and `/README.md` return exactly **1 MiB of random emoji**.
 - `/robots.txt` returns only `User-agent: *` and `Disallow: /` with HTTP 200.
 - `/favicon.ico` serves a poop emoji icon; `/livewire/livewire.js` serves fresh synthetic JavaScript.
-- Unmatched paths, including `/`, return HTTP **404** with an approximately **32 KiB** nginx/Apache-style directory listing. Randomized links stay within unmatched `/archive/...` paths and also return 404.
+- Unmatched paths, including `/`, return HTTP **200** with an approximately **32 KiB** nginx/Apache-style directory listing. Randomized links stay within unmatched `/archive/...` paths and also return index pages with HTTP 200.
 - Responses use `Cache-Control: no-store`. HEAD returns headers without a body; matched paths reject other methods with 405. Query strings do not affect route matching.
 
 Generation runs locally without reading secrets, bindings, request bodies or upstream services. ZIP and tar.gz responses are real archives containing fabricated files. The SQLite template contains invented rows. Hostnames use reserved `.invalid` names except for recognizable service-account format fields.
@@ -50,4 +50,4 @@ Generation runs locally without reading secrets, bindings, request bodies or ups
 npm test
 ```
 
-Tests cover every route, sizes, schemas, credential and binary formats, fresh output, dead links and HTTP behavior. Routes are in `src/routes.json`; generators are in `src/formats.js`, `src/schemas.js` and `src/binary.js`.
+Tests cover every route, sizes, schemas, credential and binary formats, fresh output, generated index links and HTTP behavior. Routes are in `src/routes.json`; generators are in `src/formats.js`, `src/schemas.js` and `src/binary.js`.
