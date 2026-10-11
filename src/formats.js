@@ -1,29 +1,24 @@
 import { Buffer } from 'node:buffer';
+import { applicationConfig, environment, schemaJSON, schemaJavaScript, schemaYAML } from './schemas.js';
 import { archive, dirstate, heapdump, opensshKey, privateKey, sqlite } from './binary.js';
 import { TARGET_BYTES, accessKey, date, email, escapeHTML, fill, hex, hostname,
-  id, integer, name, password, pick, records, token } from './random.js';
+  emojiDocument, id, integer, name, password, pick, records, token } from './random.js';
 
 const text = (body, type = 'text/plain; charset=utf-8') => ({ body, type });
 const json = value => {
   const body = JSON.stringify(value, null, 2) + '\n';
-  // Whitespace padding remains valid JSON even for compact endpoint schemas.
-  return text(body + '\n'.repeat(Math.max(0, TARGET_BYTES - Buffer.byteLength(body))), 'application/json; charset=utf-8');
+  return text(body, 'application/json; charset=utf-8');
 };
 const commentFill = (body, prefix = '#') => fill(body, i => `${prefix} deployment_${i}=${id()} fingerprint=${hex(64)}\n`);
 
 function env() {
-  return fill([
-    'APP_NAME=CustomerPortal', 'APP_ENV=production', 'APP_DEBUG=false',
-    `APP_KEY=base64:${Buffer.from(password()).toString('base64')}`,
-    `APP_URL=https://${hostname()}`, `DB_HOST=${hostname()}`, 'DB_PORT=5432',
-    'DB_DATABASE=portal', `DB_USERNAME=app_${token(8)}`, `DB_PASSWORD=${password()}`,
-    `REDIS_URL=redis://:${password()}@${hostname()}:6379/0`,
-    `AWS_ACCESS_KEY_ID=${accessKey()}`, `AWS_SECRET_ACCESS_KEY=${password()}`,
-    `MAIL_HOST=${hostname()}`, `MAIL_PASSWORD=${password()}`, `JWT_SECRET=${password()}`,
-  ].join('\n') + '\n', i => `SERVICE_${i}_HOST=${hostname()}\nSERVICE_${i}_API_KEY=${password()}\n`);
+  return fill(Object.entries(environment()).map(([key, value]) => `${key}=${value}`).join('\n') + '\n',
+    i => `SERVICE_${i}_HOST=${hostname()}\nSERVICE_${i}_API_KEY=${password()}\nSERVICE_${i}_CLIENT_SECRET=${password()}\n`);
 }
 
 function yaml(path) {
+  const schema = schemaYAML(path);
+  if (schema !== undefined) return schema;
   if (path === '/.azure-pipelines.yml') return fill('trigger: [main]\npool:\n  vmImage: ubuntu-latest\njobs:\n',
     i => `  - job: deploy_${i}\n    variables:\n      DEPLOY_TOKEN: "${password()}"\n    steps:\n      - script: echo "Deploying ${id()}"\n        displayName: Deploy ${name()}\n`);
   if (path === '/.drone.yml') return fill('kind: pipeline\ntype: docker\nname: production\nsteps:\n',
@@ -57,6 +52,8 @@ function ini(path) {
     return fill('[default]\nregion = us-east-1\noutput = json\n',
       i => `\n[profile tenant-${i}]\nregion = ${pick(['us-east-1', 'eu-west-1', 'ap-northeast-1'])}\nrole_arn = arn:aws:iam::${String(integer(1000000000)).padStart(12, '0')}:role/${name()}\nsource_profile = default\nexternal_id = ${id()}\n`);
   }
+  if (path === '/.boto') return fill(`[Credentials]\naws_access_key_id = ${accessKey()}\naws_secret_access_key = ${password()}\n[Boto]\nhttps_validate_certificates = True\n`, i => `\n[profile service_${i}]\naws_access_key_id = ${accessKey()}\naws_secret_access_key = ${password()}\n`);
+  if (path === '/.esmtprc') return fill('', () => `identity = ${email()}\n  hostname = ${hostname()}:587\n  username = ${email()}\n  password = ${password()}\n  starttls = enabled\n\n`);
   if (path === '/.git/config') {
     return fill('[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = false\n',
       i => `\n[remote "mirror-${i}"]\n\turl = https://${token(12)}:${password()}@${hostname()}/platform/${name()}.git\n\tfetch = +refs/heads/*:refs/remotes/mirror-${i}/*\n`);
@@ -78,14 +75,17 @@ function xml(path) {
     return text(fill('<?xml version="1.0"?>\n<wc-entries xmlns="svn:">\n',
       () => `  <entry name="${name()}.json" kind="file" revision="${integer(9000)}" url="https://${hostname()}/svn/trunk/${name()}" checksum="${hex(32)}"/>\n`) + '</wc-entries>\n', 'application/xml; charset=utf-8');
   }
-  const root = path === '/web.config' ? 'configuration' : 'settings';
+  if (path.endsWith('/settings.xml')) return text(fill('<?xml version="1.0" encoding="UTF-8"?>\n<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0"><servers>\n', i => `<server><id>repository-${i}</id><username>${token(12)}</username><password>${password()}</password></server>\n`) + '</servers></settings>\n', 'application/xml; charset=utf-8');
+  if (path === '/web.config') return text(fill('<?xml version="1.0" encoding="UTF-8"?>\n<configuration><connectionStrings>\n', i => `<add name="Database${i}" connectionString="Server=${hostname()};Database=${name()};User Id=${token(12)};Password=${password()};" providerName="System.Data.SqlClient"/>\n`) + '</connectionStrings><system.web><compilation debug="false" targetFramework="4.8"/></system.web></configuration>\n', 'application/xml; charset=utf-8');
+  const root = 'settings';
   return text(fill(`<?xml version="1.0" encoding="UTF-8"?>\n<${root}>\n  <appSettings>\n`,
     i => `    <add key="tenant_${i}_connection" value="Host=${hostname()};User Id=${token(12)};Password=${password()};Database=portal_${i}"/>\n`) + `  </appSettings>\n</${root}>\n`, 'application/xml; charset=utf-8');
 }
 
 function php(path) {
+  if (path === '/sites/default/settings.php') return text(fill(`<?php\n$settings['hash_salt'] = '${password()}';\n$databases = [\n`, i => `  'site_${i}' => ['default' => ['database' => '${name()}', 'username' => '${token(12)}', 'password' => '${password()}', 'host' => '${hostname()}', 'port' => '3306', 'driver' => 'mysql', 'prefix' => '']],\n`) + '];\n');
   const initial = path.includes('wp-config')
-    ? `<?php\ndefine('DB_NAME', 'portal');\ndefine('DB_USER', '${token(12)}');\ndefine('DB_PASSWORD', '${password()}');\ndefine('DB_HOST', '${hostname()}');\n`
+    ? `<?php\ndefine('DB_NAME', 'portal');\ndefine('DB_USER', '${token(12)}');\ndefine('DB_PASSWORD', '${password()}');\ndefine('DB_HOST', '${hostname()}');\ndefine('AUTH_KEY', '${password()}');\ndefine('SECURE_AUTH_KEY', '${password()}');\ndefine('LOGGED_IN_KEY', '${password()}');\ndefine('NONCE_KEY', '${password()}');\ndefine('AUTH_SALT', '${password()}');\ndefine('SECURE_AUTH_SALT', '${password()}');\ndefine('LOGGED_IN_SALT', '${password()}');\ndefine('NONCE_SALT', '${password()}');\n$table_prefix = 'wp_';\n`
     : `<?php\n$environment = 'production';\n$database_password = '${password()}';\n`;
   return text(fill(initial + '$services = [\n',
     i => `  'tenant_${i}' => ['host' => '${hostname()}', 'user' => '${token(10)}', 'password' => '${password()}', 'key' => '${password()}'],\n`) + '];\n');
@@ -97,6 +97,7 @@ function sql() {
 }
 
 function history(path) {
+  if (path === '/.lesshst') return text(fill('.less-history-file:\n.search\n', () => `\"${name()} ${password()}\n`));
   if (path === '/.mysql_history') return text(fill('',
     () => `SELECT id, email, api_key FROM tenants WHERE tenant_id='${id()}';\n`));
   if (path === '/.node_repl_history') return text(fill('',
@@ -111,7 +112,7 @@ function phpinfo() {
 }
 
 function jsonConfig(path) {
-  const tenants = records();
+  const tenants = records(TARGET_BYTES * 4);
   if (path === '/app/google-services.json') return json({
     project_info: { project_number: String(integer(1000000000)).padStart(12, '1'), project_id: name(), storage_bucket: `${name()}.invalid` },
     client: tenants.map(r => ({ client_info: { mobilesdk_app_id: `1:123456789012:android:${hex(32)}`,
@@ -143,20 +144,22 @@ function jsonConfig(path) {
       name: `tenant:${r.id}`, properties: { 'database.password': { value: r.secret }, 'service.endpoint': { value: r.endpoint } },
     })) });
     return json({ contexts: { application: { parentId: null, beans: Object.fromEntries(tenants.map(r => [r.name,
-      { scope: 'singleton', type: 'com.portal.ServiceClient', resource: r.endpoint, dependencies: [r.id], configuration: r }])) } } });
+      { scope: 'singleton', type: 'com.portal.ServiceClient', resource: r.endpoint, dependencies: [r.id] }])) } } });
   }
-  if (path === '/openapi.json' || path === '/swagger.json') return json({ openapi: '3.0.3', info: { title: 'Portal API', version: '1.0.0' },
+  if (path === '/openapi.json' || path === '/swagger.json') return json({ ...(path === '/swagger.json' ? { swagger: '2.0', host: hostname(), schemes: ['https'], basePath: '/' } : { openapi: '3.0.3' }), info: { title: 'Portal API', version: '1.0.0' },
     paths: Object.fromEntries(tenants.map(r => [`/internal/tenants/${r.id}`, { get: { summary: r.name,
       description: `Owner ${r.owner}; backend ${r.endpoint}`, responses: { 200: { description: 'OK' } } } }])) });
   if (path.includes('appsettings')) return json({ ConnectionStrings: { DefaultConnection:
     `Host=${hostname()};Database=portal;Username=${token(12)};Password=${password()}` },
     Logging: { LogLevel: { Default: 'Information' } }, AllowedHosts: '*', Services: tenants });
-  return json({ environment: 'production', deployment_id: id(), updated_at: date(),
-    database: { host: hostname(), name: 'portal', username: token(12), password: password(), port: 5432 },
-    session_secret: password(), services: tenants });
+  return json(applicationConfig());
 }
 
 export async function generate(path, category) {
+  if (path === '/robots.txt') return text('User-agent: *\nDisallow: /\n');
+  if (['/AGENTS.md', '/CLAUDE.md', '/README.md'].includes(path)) {
+    return text(emojiDocument(), 'text/markdown; charset=utf-8');
+  }
   if (path === '/backup.zip' || path === '/backup.tar.gz') {
     return { body: archive(path), type: path.endsWith('.zip') ? 'application/zip' : 'application/gzip' };
   }
@@ -186,24 +189,20 @@ export async function generate(path, category) {
     i => `tenant_${i} = {\n  host = "${hostname()}"\n  secret = "${password()}"\n}\n`));
   if (path.includes('.aws/') || ['/conf/settings.xml', '/.boto', '/.esmtprc', '/.npmrc', '/.netrc', '/_netrc', '/.git/config', '/.git-credentials'].includes(path)) return text(ini(path));
   if (path.endsWith('.php') || /\.php[.~]/.test(path) || path === '/sites/default/settings.php') return php(path);
+  if (path === '/instance/config.py') return text(fill(`SECRET_KEY = '${password()}'\nSQLALCHEMY_DATABASE_URI = 'postgresql://app:${password()}@${hostname()}/portal'\nMAIL_SERVER = '${hostname()}'\nMAIL_PASSWORD = '${password()}'\nSERVICE_CREDENTIALS = {\n`, i => `    'service_${i}': {'endpoint': 'https://${hostname()}', 'api_key': '${password()}'},\n`) + '}\n');
   if (path.endsWith('.py')) return text(fill(`DEBUG = False\nSECRET_KEY = '${password()}'\nDATABASES = {'default': {'HOST': '${hostname()}', 'PASSWORD': '${password()}'}}\nSERVICES = {\n`,
     i => `    'tenant_${i}': {'host': '${hostname()}', 'key': '${password()}'},\n`) + '}\n');
   if (path.endsWith('.rb')) return text(fill(`Rails.application.config.secret_key_base = '${password()}'\n`,
     () => `Rails.application.config.x.services['${name()}'] = {host: '${hostname()}', token: '${password()}'}\n`));
   if (path.endsWith('.md')) return text(fill(`# Platform deployment notes\n\nRelease: ${id()}\n\n`,
     i => `## Service ${i}: ${name()}\n\nBackend: https://${hostname()}/api\nOwner: ${email()}\nDeployment credential: \`${password()}\`\n\n`), 'text/markdown; charset=utf-8');
-  if (path.endsWith('.js')) return text(`export const config = ${JSON.stringify({ environment: 'production', services: records() }, null, 2)};\n`, 'text/javascript; charset=utf-8');
+  if (path.endsWith('.js')) return text(schemaJavaScript(path), 'text/javascript; charset=utf-8');
   if (path === '/graphql') return json({ data: { tenants: records() } });
   if (path === '/_vti_pvt/service.pwd') return text(fill('',
     () => `${token(12)}:$2y$12$${token(53, './ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789')}\n`));
-  if (path.endsWith('.json') || path.endsWith('.map') || path === '/.amplifyrc' || path === '/terraform.tfstate' || path.startsWith('/actuator/') || ['/api/config', '/debug/vars', '/wp-json/logtivity/v1/options'].includes(path)) {
-    // Service account documents retain their recognizable root fields.
-    if (/service.?account|serviceAccount|adminsdk|gcp-|google-|firebase-key|application_default_credentials|\/sa\.json/.test(path)) {
-      return json({ type: 'service_account', project_id: name(), private_key_id: hex(40),
-        private_key: await privateKey(), client_email: `${name()}@${name()}.iam.gserviceaccount.com`,
-        client_id: String(integer()).padStart(21, '1'), auth_uri: 'https://accounts.google.com/o/oauth2/auth',
-        token_uri: 'https://oauth2.googleapis.com/token', services: records() });
-    }
+  if (path.endsWith('.json') || path.endsWith('.map') || path === '/.amplifyrc' || path === '/.dockercfg' || path === '/terraform.tfstate' || path.startsWith('/actuator/') || ['/api/config', '/debug/vars', '/wp-json/logtivity/v1/options'].includes(path)) {
+    const schema = await schemaJSON(path);
+    if (schema !== undefined) return json(schema);
     return jsonConfig(path);
   }
   return text(env());

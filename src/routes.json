@@ -391,5 +391,6 @@
   "/i18n.js.map": "Source, developer instructions and API discovery (lower confidence)",
   "/nav.js.map": "Source, developer instructions and API discovery (lower confidence)",
   "/openapi.json": "Source, developer instructions and API discovery (lower confidence)",
-  "/swagger.json": "Source, developer instructions and API discovery (lower confidence)"
+  "/swagger.json": "Source, developer instructions and API discovery (lower confidence)",
+  "/robots.txt": "Crawler exclusion"
 }

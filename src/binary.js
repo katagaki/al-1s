@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer';
 import { gzipSync } from 'node:zlib';
 import sqliteTemplate from './sqlite-template.json' with { type: 'json' };
+import { environment } from './environment.js';
 import { TARGET_BYTES, fill, hex, id, integer, password, token } from './random.js';
 
 const u32 = value => { const b = Buffer.alloc(4); b.writeUInt32BE(value >>> 0); return b; };
@@ -90,7 +91,8 @@ function zip(files) {
 
 export function archive(path) {
   const files = {
-    '.env': fill('APP_ENV=production\n', i => `TENANT_${i}_SECRET=${password()}\n`, TARGET_BYTES / 2),
+    '.env': fill(Object.entries(environment()).map(([key, value]) => `${key}=${value}`).join('\n') + '\n',
+      i => `TENANT_${i}_SECRET=${password()}\n`, TARGET_BYTES / 2),
     'config/services.json': JSON.stringify({ deployment: id(), key: password(), services:
       Array.from({ length: 400 }, () => ({ id: id(), secret: password(), endpoint: `${token(12)}.invalid` })) }, null, 2),
     'database/users.sql': fill('CREATE TABLE users (id TEXT, email TEXT, api_key TEXT);\n',
