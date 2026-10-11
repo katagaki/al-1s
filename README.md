@@ -25,6 +25,12 @@ These scripts use the Cloudflare **cf CLI**, configured in `cloudflare.config.ts
 
 The Worker deploys `src/index.js` directly. **Every unmatched path returns generated HTML with HTTP 404 from the fetch handler.** `assets.runWorkerFirst: true` ensures the handler takes precedence, including over Vite's development file serving; asset HTML and not-found rewrites are disabled. No static-asset binding, SPA fallback or separate `404.html` file is used. This also covers `/`, unless it is added to the exact route manifest. Generated index links point to random, unmatched `/archive/...` paths and continue to return 404; they never redirect or fetch another server.
 
+## Cloudflare Workers Builds (Git integration)
+
+Cloudflare's default deploy command uses Wrangler. `wrangler.jsonc` declares `src/index.js` as its entry point and enables Node.js compatibility. It deploys the fetch handler directly, with no assets directory or static-file fallback. `cloudflare.config.ts` remains the configuration for the local cf CLI workflow.
+
+In the Cloudflare build settings, use the repository root (`/`) as the root directory, `npm run build` as the build command, and `npx wrangler deploy` as the deploy command. The configured Worker name is `al-1s` and must match the Worker connected to the repository. Non-production branches can use `npx wrangler versions upload`.
+
 ## Responses
 
 - Every decoy GET returns **at least 128 KiB**, freshly generated for that request. `/AGENTS.md`, `/CLAUDE.md` and `/README.md` return exactly **1 MiB of random emoji** instead of prose.

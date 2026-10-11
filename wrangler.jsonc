@@ -1,0 +1,7 @@
+{
+  // Cloudflare Workers Builds invokes Wrangler, which needs its own entry point.
+  "name": "al-1s",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-11",
+  "compatibility_flags": ["nodejs_compat"]
+}
