@@ -392,5 +392,7 @@
   "/nav.js.map": "Source, developer instructions and API discovery (lower confidence)",
   "/openapi.json": "Source, developer instructions and API discovery (lower confidence)",
   "/swagger.json": "Source, developer instructions and API discovery (lower confidence)",
+  "/livewire/livewire.js": "Source, developer instructions and API discovery (lower confidence)",
+  "/favicon.ico": "Site favicon",
   "/robots.txt": "Crawler exclusion"
 }

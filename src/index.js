@@ -11,6 +11,7 @@ function notFound(path) {
   const opening = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Index of ${escapeHTML(path)}</title>
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
 <style>html{color-scheme:light}body{margin:8px;color:#000;background:#fff;font-family:"Times New Roman",serif}h1{font-size:2em;margin:.67em 0;overflow-wrap:anywhere}a:link{color:#00e}a:visited{color:#551a8b}pre{font:13px/1.5 monospace;overflow-x:auto}hr{border:0;border-top:1px solid #888}address{font-size:14px}</style>
 </head><body><h1>Index of ${escapeHTML(path)}</h1><hr><pre aria-label="Directory listing">      ${'Name'.padEnd(52)}${'Last modified'.padEnd(19)}${'Size'.padStart(5)}  Description
 [DIR] <a rel="nofollow" href="${prefix}">../</a>${' '.repeat(49 + 19)}${'-'.padStart(5)}  Parent Directory
@@ -38,7 +39,7 @@ export default {
       'Cache-Control': 'no-store, max-age=0',
       'X-Content-Type-Options': 'nosniff',
       'X-Robots-Tag': 'noindex, nofollow',
-      'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'",
+      'Content-Security-Policy': "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'",
     };
     if (matched && request.method !== 'GET' && request.method !== 'HEAD') {
       return new Response('Method not allowed\n', { status: 405, headers: { ...headers, Allow: 'GET, HEAD' } });

@@ -1,6 +1,6 @@
 # AL-1S
 
-A synthetic information-disclosure decoy for Node.js and Cloudflare Workers. It serves fabricated data at 393 known probe paths. Only the route manifest is included; no original logs, tokens or real configuration are committed.
+A synthetic information-disclosure decoy for Node.js and Cloudflare Workers. It serves fabricated data at 394 known probe paths. Only the route manifest is included; no original logs, tokens or real configuration are committed.
 
 ## Run locally
 
@@ -38,6 +38,7 @@ For Cloudflare Workers Builds (Git integration), use these settings:
 - Matched GETs return at least **128 KiB** of fresh synthetic content in the requested format, including structured configuration, logs, keys, archives and databases. All credential-like values are fabricated; compact formats may be oversized and unusable as real credentials or metadata.
 - `/AGENTS.md`, `/CLAUDE.md` and `/README.md` return exactly **1 MiB of random emoji**.
 - `/robots.txt` returns only `User-agent: *` and `Disallow: /` with HTTP 200.
+- `/favicon.ico` serves a poop emoji icon; `/livewire/livewire.js` serves fresh synthetic JavaScript.
 - Unmatched paths, including `/`, return HTTP **404** with an approximately **32 KiB** nginx/Apache-style directory listing. Randomized links stay within unmatched `/archive/...` paths and also return 404.
 - Responses use `Cache-Control: no-store`. HEAD returns headers without a body; matched paths reject other methods with 405. Query strings do not affect route matching.
 

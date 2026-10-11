@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer';
+import { favicon } from './favicon.js';
 import { applicationConfig, environment, schemaJSON, schemaJavaScript, schemaYAML } from './schemas.js';
 import { archive, dirstate, heapdump, opensshKey, privateKey, sqlite } from './binary.js';
 import { TARGET_BYTES, accessKey, date, email, escapeHTML, fill, hex, hostname,
@@ -156,6 +157,7 @@ function jsonConfig(path) {
 }
 
 export async function generate(path, category) {
+  if (path === '/favicon.ico') return { body: favicon, type: 'image/x-icon' };
   if (path === '/robots.txt') return text('User-agent: *\nDisallow: /\n');
   if (['/AGENTS.md', '/CLAUDE.md', '/README.md'].includes(path)) {
     return text(emojiDocument(), 'text/markdown; charset=utf-8');

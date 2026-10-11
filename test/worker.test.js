@@ -7,15 +7,15 @@ import { TARGET_BYTES, HTML_BYTES, EMOJI_BYTES } from '../src/random.js';
 
 const request = (path, options) => worker.fetch(new Request(`https://example.invalid${path}`, options));
 
-test('all 393 decoy routes and robots.txt return their intended content', async () => {
-  assert.equal(Object.keys(routes).length, 394);
+test('all 394 decoy routes, favicon.ico and robots.txt return their intended content', async () => {
+  assert.equal(Object.keys(routes).length, 396);
   for (const path of Object.keys(routes)) {
     const response = await request(path);
     assert.equal(response.status, 200, path);
     assert.equal(response.headers.get('cache-control'), 'no-store, max-age=0');
     const body = Buffer.from(await response.arrayBuffer());
     if (path === '/robots.txt') assert.equal(body.toString(), 'User-agent: *\nDisallow: /\n');
-    else assert.ok(body.length >= TARGET_BYTES, `${path}: only ${body.length} bytes`);
+    else if (path !== '/favicon.ico') assert.ok(body.length >= TARGET_BYTES, `${path}: only ${body.length} bytes`);
     assert.equal(Number(response.headers.get('content-length')), body.length, path);
     if (response.headers.get('content-type').startsWith('application/json')) {
       assert.doesNotThrow(() => JSON.parse(body), path);
@@ -34,6 +34,26 @@ test('all 393 decoy routes and robots.txt return their intended content', async 
       assert.equal(createPrivateKey(body).asymmetricKeyType, 'rsa');
     }
   }
+});
+
+test('favicon serves an ICO image with matching HEAD headers and method restrictions', async () => {
+  const response = await request('/favicon.ico');
+  assert.equal(response.headers.get('content-type'), 'image/x-icon');
+  const body = Buffer.from(await response.arrayBuffer());
+  assert.equal(body.readUInt16LE(0), 0);
+  assert.equal(body.readUInt16LE(2), 1);
+  assert.equal(body.readUInt16LE(4), 3);
+  for (let i = 0; i < 3; i++) {
+    const entry = 6 + i * 16;
+    const offset = body.readUInt32LE(entry + 12);
+    assert.equal(body.subarray(offset, offset + 8).toString('hex'), '89504e470d0a1a0a');
+    assert.ok(offset + body.readUInt32LE(entry + 8) <= body.length);
+  }
+  const head = await request('/favicon.ico?version=1', { method: 'HEAD' });
+  assert.equal(head.status, 200);
+  assert.equal(await head.text(), '');
+  assert.equal(head.headers.get('content-length'), String(body.length));
+  assert.equal((await request('/favicon.ico', { method: 'POST' })).status, 405);
 });
 
 test('documentation decoys contain exactly one MiB of fresh, valid emoji', async () => {
@@ -115,7 +135,7 @@ test('named files and endpoints retain their recognizable schemas with fabricate
 });
 
 test('requests generate different data rather than sharing a cached document', async () => {
-  for (const path of ['/.env', '/secrets.json', '/backup.zip', '/.svn/wc.db', '/.git/HEAD', '/.ssh/id_ed25519']) {
+  for (const path of ['/.env', '/secrets.json', '/backup.zip', '/.svn/wc.db', '/.git/HEAD', '/.ssh/id_ed25519', '/livewire/livewire.js']) {
     const a = Buffer.from(await (await request(path)).arrayBuffer());
     const b = Buffer.from(await (await request(path)).arrayBuffer());
     assert.notDeepEqual(a, b, path);
@@ -130,7 +150,8 @@ test('unmatched paths return 404 HTML with only dead generated index links', asy
   assert.ok(Buffer.byteLength(body) >= HTML_BYTES);
   assert.match(body, /&lt;script&gt;/);
   assert.doesNotMatch(body, /<script>/);
-  const links = [...body.matchAll(/href="([^"]+)"/g)].map(match => match[1]);
+  assert.match(body, /<link rel="icon" href="\/favicon.ico"/);
+  const links = [...body.matchAll(/<a\b[^>]*href="([^"]+)"/g)].map(match => match[1]);
   assert.ok(links.length > 100);
   for (const link of links) assert.equal(Object.hasOwn(routes, link), false);
   assert.equal((await request(links[0])).status, 404);
