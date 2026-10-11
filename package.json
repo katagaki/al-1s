@@ -1,0 +1,19 @@
+{
+  "name": "al-1s",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "cf dev",
+    "build": "cf build",
+    "deploy": "cf deploy",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "beta",
+    "cf": "^1.0.0-beta.5",
+    "vite": "^8.3.0"
+  }
+}
